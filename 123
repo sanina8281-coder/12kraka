@@ -1,0 +1,178 @@
+-- Brainrot Grabber
+task.spawn(function()
+    local Players = game:GetService("Players")
+    local UserInputService = game:GetService("UserInputService")
+    local RunService = game:GetService("RunService")
+    local ProximityPromptService = game:GetService("ProximityPromptService")
+    
+    local player = Players.LocalPlayer
+    
+    if not player.Character then
+        player.CharacterAdded:Wait()
+    end
+    task.wait(0.5)
+    
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "BrainrotGrabberUI"
+    gui.ResetOnSpawn = false
+    gui.Parent = player:WaitForChild("PlayerGui")
+    
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.fromOffset(240, 140)
+    frame.Position = UDim2.fromScale(0.5, 0.5)
+    frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    frame.BackgroundTransparency = 0.1
+    frame.Active = true
+    frame.Draggable = true
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
+    
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+    stroke.Thickness = 2
+    
+    local gradient = Instance.new("UIGradient")
+    gradient.Parent = stroke
+    gradient.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(0.5, 0.8),
+        NumberSequenceKeypoint.new(1, 0)
+    })
+    
+    RunService.Heartbeat:Connect(function(dt)
+        gradient.Rotation = gradient.Rotation + dt * 180
+    end)
+    
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1, -12, 0, 28)
+    title.Position = UDim2.fromOffset(6, 6)
+    title.BackgroundTransparency = 1
+    title.Text = "Brainrot Grabber"
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 16
+    title.TextColor3 = Color3.fromRGB(255,255,255)
+    title.TextXAlignment = Enum.TextXAlignment.Center
+    
+    local status = Instance.new("TextLabel", frame)
+    status.Size = UDim2.new(1, -12, 0, 22)
+    status.Position = UDim2.fromOffset(6, 36)
+    status.BackgroundTransparency = 1
+    status.Text = "Press F to start grabbing"
+    status.Font = Enum.Font.Gotham
+    status.TextSize = 12
+    status.TextColor3 = Color3.fromRGB(200,200,200)
+    status.TextXAlignment = Enum.TextXAlignment.Center
+    
+    local function makeButton(text, y, callback)
+        local b = Instance.new("TextButton", frame)
+        b.Size = UDim2.new(1, -24, 0, 36)
+        b.Position = UDim2.fromOffset(12, y)
+        b.BackgroundColor3 = Color3.fromRGB(50,50,50)
+        b.BackgroundTransparency = 0.05
+        b.Text = text
+        b.Font = Enum.Font.GothamMedium
+        b.TextSize = 14
+        b.TextColor3 = Color3.fromRGB(230,230,230)
+        b.AutoButtonColor = false
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
+
+        b.MouseEnter:Connect(function()
+            b.BackgroundTransparency = 0
+        end)
+        b.MouseLeave:Connect(function()
+            b.BackgroundTransparency = 0.05
+        end)
+
+        b.MouseButton1Click:Connect(callback)
+        return b
+    end
+    
+    local grabberActive = false
+    local lookingForSteal = false
+    local button = makeButton("Grabber: OFF", 64, function()
+        grabberActive = not grabberActive
+        lookingForSteal = grabberActive
+        
+        if grabberActive then
+            button.Text = "Grabber: ON"
+            button.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
+            status.Text = "Looking for Steal..."
+        else
+            button.Text = "Grabber: OFF"
+            button.BackgroundColor3 = Color3.fromRGB(50,50,50)
+            status.Text = "Press F to start grabbing"
+            lookingForSteal = false
+        end
+    end)
+    
+    local function findAndSteal()
+        if not lookingForSteal then return end
+        
+        -- Поиск активных промптов Steal в радиусе
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                if obj.Name == "Steal" or obj.ActionText == "Steal" then
+                    if obj.Enabled then
+                        status.Text = "Stealing..."
+                        
+                        -- Автоматически удерживаем промпт
+                        local startTime = tick()
+                        local maxTime = 3 -- Максимальное время удержания
+                        
+                        while obj.Parent and (tick() - startTime) < maxTime and lookingForSteal do
+                            obj:InputHoldBegin()
+                            task.wait(0.1)
+                        end
+                        
+                        if obj.Parent then
+                            obj:InputHoldEnd()
+                        end
+                        
+                        status.Text = "Looking for Steal..."
+                        return true -- Нашли и украли
+                    end
+                end
+            end
+        end
+        return false -- Не нашли
+    end
+    
+    -- Основной цикл поиска
+    task.spawn(function()
+        while true do
+            if lookingForSteal then
+                local found = findAndSteal()
+                if not found then
+                    task.wait(0.5) -- Ждем перед следующим поиском
+                else
+                    task.wait(0.2) -- Маленькая пауза после кражи
+                end
+            else
+                task.wait(1) -- Ожидание когда неактивно
+            end
+        end
+    end)
+    
+    UserInputService.InputBegan:Connect(function(input, gpe)
+        if gpe then return end
+        if input.KeyCode == Enum.KeyCode.F then
+            grabberActive = not grabberActive
+            lookingForSteal = grabberActive
+            
+            if grabberActive then
+                button.Text = "Grabber: ON"
+                button.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
+                status.Text = "Looking for Steal..."
+            else
+                button.Text = "Grabber: OFF"
+                button.BackgroundColor3 = Color3.fromRGB(50,50,50)
+                status.Text = "Press F to start grabbing"
+            end
+        end
+    end)
+    
+    while true do
+        task.wait()
+    end
+end)
